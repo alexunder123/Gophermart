@@ -104,7 +104,7 @@ func (h *Handler) Orders(w http.ResponseWriter, r *http.Request) {
 
 	if !h.lynnCheckOrder(lynnArr) {
 		log.Error().Err(err).Msg("lynnCheckOrder err")
-		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		http.Error(w, "lynn Check Order error", http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -169,7 +169,7 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	if !h.lynnCheckOrder(lynnArr) {
 		log.Error().Err(err).Msg("lynnCheckOrder err")
-		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		http.Error(w, "lynn Check Order error", http.StatusUnprocessableEntity)
 		return
 	}
 
