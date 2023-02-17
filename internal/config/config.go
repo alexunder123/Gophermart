@@ -22,7 +22,7 @@ func NewConfig() (*Config, error) {
 	}
 
 	if config.RunAddress == "" {
-		flag.StringVar(&config.RunAddress, "a", "127.0.0.1:8080", "Адрес запускаемого сервера")
+		flag.StringVar(&config.RunAddress, "a", "", "Адрес запускаемого сервера")
 	}
 	if config.DatabaseURI == "" {
 		flag.StringVar(&config.DatabaseURI, "d", "", "База данных SQL")

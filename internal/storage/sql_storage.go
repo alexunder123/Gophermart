@@ -31,18 +31,21 @@ func NewSQLStorager(cfg *config.Config) *SQLStorage {
 }
 
 func createDB(db *sql.DB) error {
-	_, err := db.Exec("CREATE TABLE IF NOT EXISTS gophermart_users(user_id text UNIQUE, login text UNIQUE, password text, balance integer DEFAULT 0, withdrawn integer DEFAULT 0;")
+	_, err := db.Exec("CREATE TABLE IF NOT EXISTS gophermart_users(user_id text UNIQUE, login text UNIQUE, password text, balance integer DEFAULT 0, withdrawn integer DEFAULT 0);")
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS gophermart_orders(order_no text UNIQUE, user_id text, status text DEFAULT NEW, accrual integer DEFAULT 0, date timestamptz DEFAULT current_timestamp;")
+	log.Debug().Msg("storage gophermart_users init")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS gophermart_orders(order_no text UNIQUE, user_id text, status text DEFAULT 'NEW', accrual integer DEFAULT 0, date timestamptz DEFAULT CURRENT_TIMESTAMP);")
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS gophermart_withdraws(order_no text UNIQUE, user_id text, sum integer, date timestamptz DEFAULT current_timestamp;")
+	log.Debug().Msg("storage gophermart_orders init")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS gophermart_withdraws(order_no text UNIQUE, user_id text, sum integer, date timestamptz DEFAULT CURRENT_TIMESTAMP);")
 	if err != nil {
 		return err
 	}
+	log.Debug().Msg("storage gophermart_withdraws init")
 	// _, err = db.Exec("CREATE TABLE IF NOT EXISTS gophermart_temp(order_no text UNIQUE, status text DEFAULT new, date timestamptz DEFAULT current_timestamp;")
 	// if err != nil {
 	// 	return err
@@ -252,7 +255,7 @@ func (s *SQLStorage) GetProcessedOrders() ([]ProcessedOrders, error) {
 	var orderNo string
 	var status string
 	orders := make([]ProcessedOrders, 0)
-	rows, err := s.DB.Query("SELECT order_no, status FROM gophermart_orders WHERE status=NEW OR status=REGISTERED OR status=PROCESSING ORDER BY date")
+	rows, err := s.DB.Query("SELECT order_no, status FROM gophermart_orders WHERE status='NEW' OR status='REGISTERED' OR status='PROCESSING' ORDER BY date")
 	if err != nil {
 		return nil, err
 	}
