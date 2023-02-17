@@ -18,11 +18,6 @@ type username struct {
 	Password string `json:"password"`
 }
 
-type userBalance struct {
-	Current   int `json:"current"`
-	Withdrawn int `json:"withdrawn"`
-}
-
 type userWithdraw struct {
 	Order string `json:"order"`
 	Sum   float64    `json:"sum"`

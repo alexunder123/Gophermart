@@ -190,7 +190,7 @@ func (s *SQLStorage) UserBalance(userID string) ([]byte, error) {
 }
 
 func (s *SQLStorage) UserOrders(userID string) ([]byte, error) {
-	var order_no, status string
+	var orderNo, status string
 	var accrual int
 	var date time.Time
 	currentUserOrders := make([]orders, 0)
@@ -204,11 +204,11 @@ func (s *SQLStorage) UserOrders(userID string) ([]byte, error) {
 	defer rows.Close()
 	for rows.Next() {
 		i := 0
-		err = rows.Scan(&order_no, &status, &accrual, &date)
+		err = rows.Scan(&orderNo, &status, &accrual, &date)
 		if err != nil {
 			return nil, err
 		}
-		currentUserOrders = append(currentUserOrders, orders{Number: order_no, Status: status, UploadedAt: date.Format(time.RFC3339)})
+		currentUserOrders = append(currentUserOrders, orders{Number: orderNo, Status: status, UploadedAt: date.Format(time.RFC3339)})
 		if status == "PROCESSED" {
 			currentUserOrders[i].Accrual = float64(accrual) / 100
 		}
@@ -222,7 +222,7 @@ func (s *SQLStorage) UserOrders(userID string) ([]byte, error) {
 }
 
 func (s *SQLStorage) UserWithdrawals(userID string) ([]byte, error) {
-	var order_no string
+	var orderNo string
 	var sum int
 	var date time.Time
 	currentUserWithdraws := make([]withdraws, 0)
@@ -235,11 +235,11 @@ func (s *SQLStorage) UserWithdrawals(userID string) ([]byte, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&order_no, &sum, &date)
+		err = rows.Scan(&orderNo, &sum, &date)
 		if err != nil {
 			return nil, err
 		}
-		currentUserWithdraws = append(currentUserWithdraws, withdraws{Order: order_no, Sum: float64(sum) / 100, ProcessedAt: date.Format(time.RFC3339)})
+		currentUserWithdraws = append(currentUserWithdraws, withdraws{Order: orderNo, Sum: float64(sum) / 100, ProcessedAt: date.Format(time.RFC3339)})
 	}
 	currentUserWithdrawsBZ, err := json.Marshal(currentUserWithdraws)
 	if err != nil {
@@ -249,7 +249,7 @@ func (s *SQLStorage) UserWithdrawals(userID string) ([]byte, error) {
 }
 
 func (s *SQLStorage) GetProcessedOrders() ([]ProcessedOrders, error) {
-	var order_no string
+	var orderNo string
 	var status string
 	orders := make([]ProcessedOrders, 0)
 	rows, err := s.DB.Query("SELECT order_no, status FROM gophermart_orders WHERE status=NEW OR status=REGISTERED OR status=PROCESSING ORDER BY date")
@@ -261,11 +261,11 @@ func (s *SQLStorage) GetProcessedOrders() ([]ProcessedOrders, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&order_no, &status)
+		err = rows.Scan(&orderNo, &status)
 		if err != nil {
 			return nil, err
 		}
-		orders = append(orders, ProcessedOrders{Order: order_no, Status: status})
+		orders = append(orders, ProcessedOrders{Order: orderNo, Status: status})
 	}
 	return orders, nil
 }
