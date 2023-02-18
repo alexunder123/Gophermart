@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"gophermart/internal/config"
 	"gophermart/internal/storage"
 	"math/rand"
@@ -19,8 +20,8 @@ type username struct {
 }
 
 type userWithdraw struct {
-	Order string `json:"order"`
-	Sum   float64    `json:"sum"`
+	Order string  `json:"order"`
+	Sum   float64 `json:"sum"`
 }
 
 func NewHandler(cfg *config.Config, strg storage.Storager) *Handler {
@@ -34,7 +35,7 @@ func (h *Handler) hashPasswd(password string) string {
 	hash := sha256.New()
 	hash.Write([]byte(password))
 	dst := hash.Sum(nil)
-	return string(dst)
+	return hex.EncodeToString(dst)
 }
 
 func (h *Handler) randomID(n int) string {
