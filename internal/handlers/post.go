@@ -23,8 +23,10 @@ func (h *Handler) Registration(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	log.Debug().Msgf("received new user: %s, %s", newUser.Login, newUser.Password)
 	newUser.Password = h.hashPasswd(newUser.Password)
 	userID := h.randomID(16)
+	log.Debug().Msgf("generated ID, hash: %s, %s", userID, newUser.Password)
 	err = h.strg.AddNewUser(newUser.Login, newUser.Password, userID)
 	if errors.Is(err, storage.ErrConflict) {
 		http.Error(w, err.Error(), http.StatusConflict)
@@ -75,7 +77,7 @@ func (h *Handler) LogIn(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Orders(w http.ResponseWriter, r *http.Request) {
-	userID := w.Header().Get("gophermart")
+	userID := r.Header.Get("gophermart")
 	if userID == "" {
 		http.Error(w, "user unauthorized", http.StatusUnauthorized)
 		return
@@ -134,7 +136,7 @@ func (h *Handler) Orders(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
-	userID := w.Header().Get("gophermart")
+	userID := r.Header.Get("gophermart")
 	if userID == "" {
 		http.Error(w, "user unauthorized", http.StatusUnauthorized)
 		return

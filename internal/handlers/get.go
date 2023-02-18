@@ -10,7 +10,7 @@ import (
 )
 
 func (h *Handler) Balance(w http.ResponseWriter, r *http.Request) {
-	userID := w.Header().Get("gophermart")
+	userID := r.Header.Get("gophermart")
 	if userID == "" {
 		http.Error(w, "user unauthorized", http.StatusUnauthorized)
 		return
@@ -39,7 +39,7 @@ func (h *Handler) Balance(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) OrdersHistory(w http.ResponseWriter, r *http.Request) {
-	userID := w.Header().Get("gophermart")
+	userID := r.Header.Get("gophermart")
 	if userID == "" {
 		http.Error(w, "user unauthorized", http.StatusUnauthorized)
 		return
@@ -72,7 +72,7 @@ func (h *Handler) OrdersHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) WithdrawHistory(w http.ResponseWriter, r *http.Request) {
-	userID := w.Header().Get("gophermart")
+	userID := r.Header.Get("gophermart")
 	if userID == "" {
 		http.Error(w, "user unauthorized", http.StatusUnauthorized)
 		return
