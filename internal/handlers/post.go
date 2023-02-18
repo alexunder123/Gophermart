@@ -43,7 +43,7 @@ func (h *Handler) Registration(w http.ResponseWriter, r *http.Request) {
 	// cookie.Path = "/"
 	// cookie.Expires = time.Now().Add(time.Hour)
 	// http.SetCookie(w, &cookie)
-	w.Header().Add("gophermart", userID)
+	w.Header().Add("Authorization", userID)
 	w.WriteHeader(http.StatusOK)
 	w.Write(nil)
 }
@@ -71,13 +71,13 @@ func (h *Handler) LogIn(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Add("gophermart", userID)
+	w.Header().Add("Authorization", userID)
 	w.WriteHeader(http.StatusOK)
 	w.Write(nil)
 }
 
 func (h *Handler) Orders(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("gophermart")
+	userID := r.Header.Get("Authorization")
 	if userID == "" {
 		http.Error(w, "user unauthorized", http.StatusUnauthorized)
 		return
@@ -136,7 +136,7 @@ func (h *Handler) Orders(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
-	userID := r.Header.Get("gophermart")
+	userID := r.Header.Get("Authorization")
 	if userID == "" {
 		http.Error(w, "user unauthorized", http.StatusUnauthorized)
 		return
