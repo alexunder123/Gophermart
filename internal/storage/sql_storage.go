@@ -220,9 +220,8 @@ func (s *SQLStorage) UserOrders(userID string) ([]byte, error) {
 }
 
 func (s *SQLStorage) UserWithdrawals(userID string) ([]byte, error) {
-	var orderNo string
+	var orderNo, date string
 	var sum int
-	var date time.Time
 	currentUserWithdraws := make([]withdraws, 0)
 	rows, err := s.DB.Query("SELECT order_no, sum, date FROM gophermart_withdraws WHERE user_id = $1", userID)
 	if err != nil {
@@ -237,7 +236,7 @@ func (s *SQLStorage) UserWithdrawals(userID string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		currentUserWithdraws = append(currentUserWithdraws, withdraws{Order: orderNo, Sum: float32(sum) / 100, ProcessedAt: date.Format(time.RFC3339)})
+		currentUserWithdraws = append(currentUserWithdraws, withdraws{Order: orderNo, Sum: float32(sum) / 100, ProcessedAt: date})
 	}
 	currentUserWithdrawsBZ, err := json.Marshal(currentUserWithdraws)
 	if err != nil {
