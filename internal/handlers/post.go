@@ -99,20 +99,16 @@ func (h *Handler) Orders(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	lynnArr := make([]int, 0, len(bytes))
-	for i, elem := range bytes {
-		lynnArr[i] = int(elem)
-	}
 
-	if !h.lynnCheckOrder(lynnArr) {
+	if !h.LynnCheckOrder(bytes) {
 		log.Error().Err(err).Msg("lynnCheckOrder err")
 		http.Error(w, "lynn Check Order error", http.StatusUnprocessableEntity)
 		return
 	}
 
-	orders := string(bytes)
+	order := string(bytes)
 
-	err = h.strg.AddNewOrder(userID, orders)
+	err = h.strg.AddNewOrder(userID, order)
 	if errors.Is(err, storage.ErrUploaded) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
@@ -125,7 +121,7 @@ func (h *Handler) Orders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		log.Error().Err(err).Msg("UserOrders err")
+		log.Error().Err(err).Msg("AddNewOrder err")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -164,12 +160,8 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	lynnBz := []byte(withdrawEntry.Order)
-	lynnArr := make([]int, 0, len(lynnBz))
-	for i, elem := range bytes {
-		lynnArr[i] = int(elem)
-	}
 
-	if !h.lynnCheckOrder(lynnArr) {
+	if !h.LynnCheckOrder(lynnBz) {
 		log.Error().Err(err).Msg("lynnCheckOrder err")
 		http.Error(w, "lynn Check Order error", http.StatusUnprocessableEntity)
 		return
@@ -177,12 +169,12 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	err = h.strg.UserWithdraw(userID, withdrawEntry.Order, withdrawEntry.Sum)
 	if errors.Is(err, storage.ErrNotEnouthBalance) {
-		log.Error().Err(err).Msg("UserOrders err")
+		log.Error().Err(err).Msg("Withdraw UserWithdraw err")
 		http.Error(w, err.Error(), http.StatusPaymentRequired)
 		return
 	}
 	if err != nil {
-		log.Error().Err(err).Msg("UserOrders err")
+		log.Error().Err(err).Msg("Withdraw UserWithdraw err")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -45,7 +45,8 @@ func (ar *AccrualReader) Run(strg storage.Storager) {
 					continue
 				}
 				for _, order := range ordersToUpd {
-					request, err := http.NewRequest(http.MethodGet, ar.AccuralSystemAddress+"/"+order.Order, nil)
+					log.Debug().Msgf("AccrualReader order: %s", order)
+					request, err := http.NewRequest(http.MethodGet, ar.AccuralSystemAddress+"/api/orders/"+order.Order, nil)
 					if err != nil {
 						log.Error().Err(err).Msg("NewRequest process run error")
 						continue
@@ -60,30 +61,9 @@ func (ar *AccrualReader) Run(strg storage.Storager) {
 						log.Error().Err(err).Msg("Read result.Body process run error")
 						continue
 					}
-					err = result.Body.Close()
-					if err != nil {
-						log.Error().Err(err).Msg("result.Body.Close process run error")
-						continue
-					}
-					if result.StatusCode == 200 {
-						var responce storage.AccuralResult
-						if err = json.Unmarshal(accuralResultBZ, &responce); err != nil {
-							log.Error().Err(err).Msg("rUnmarshal process run error")
-							return
-						}
-						if responce.Status == order.Status {
-							continue
-						} else {
-							err := strg.UpdateOrderStatus(responce)
-							if err != nil {
-								log.Error().Err(err).Msg("GetProcessedOrders process run error")
-								continue
-							}
-						}
-					}
-					if result.StatusCode == 204 {
-						continue
-					}
+					defer result.Body.Close()
+
+					log.Debug().Msgf("AccrualReader received status: %d", result.StatusCode)
 					if result.StatusCode == 429 {
 						t, err := time.ParseDuration(result.Header.Get("Retry-After") + "s")
 						if err != nil {
@@ -91,7 +71,34 @@ func (ar *AccrualReader) Run(strg storage.Storager) {
 							continue
 						}
 						time.Sleep(t * time.Second)
+						continue
 					}
+					var responce storage.AccuralResult
+					if err = json.Unmarshal(accuralResultBZ, &responce); err != nil {
+						log.Error().Err(err).Msg("Unmarshal process run error")
+						return
+					}
+					if result.StatusCode == 200 {
+						if responce.Status == order.Status {
+							continue
+						} else {
+							responce.UserID = order.UserID
+							err := strg.UpdateOrderStatus(responce)
+							if err != nil {
+								log.Error().Err(err).Msg("GetProcessedOrders UpdateOrderStatus error")
+								continue
+							}
+						}
+					}
+					if result.StatusCode == 204 {
+						err := strg.UpdateOrderStatus(responce)
+							if err != nil {
+								log.Error().Err(err).Msg("GetProcessedOrders UpdateOrderStatus error")
+								continue
+							}
+						continue
+					}
+					
 				}
 			}
 			time.Sleep(time.Second)
