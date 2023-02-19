@@ -37,12 +37,6 @@ func (h *Handler) Registration(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	// var cookie http.Cookie
-	// cookie.Name = "gophermart"
-	// cookie.Value = newUser.UserID
-	// cookie.Path = "/"
-	// cookie.Expires = time.Now().Add(time.Hour)
-	// http.SetCookie(w, &cookie)
 	w.Header().Add("Authorization", userID)
 	w.WriteHeader(http.StatusOK)
 	w.Write(nil)

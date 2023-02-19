@@ -25,7 +25,6 @@ func (h *Handler) Balance(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	// var balance userBalance
 	balance, err := h.strg.UserBalance(userID)
 	if err != nil {
 		log.Error().Err(err).Msg("Balance UserBalance err")
