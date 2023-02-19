@@ -6,7 +6,10 @@ import (
 	"gophermart/internal/config"
 	"gophermart/internal/storage"
 	"math/rand"
+	"strconv"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Handler struct {
@@ -21,7 +24,7 @@ type username struct {
 
 type userWithdraw struct {
 	Order string  `json:"order"`
-	Sum   float64 `json:"sum"`
+	Sum   float32 `json:"sum"`
 }
 
 func NewHandler(cfg *config.Config, strg storage.Storager) *Handler {
@@ -48,17 +51,26 @@ func (h *Handler) randomID(n int) string {
 	return string(bts)
 }
 
-func (h *Handler) lynnCheckOrder(lynn []int) bool {
-	for i := len(lynn) - 2; i >= 0; i -= 2 {
-		n := lynn[i] * 2
+func (h *Handler) LynnCheckOrder(lynn []byte) bool {
+	lynnArr := make([]int, len(lynn))
+	for i, d := range lynn {
+		j, err := strconv.Atoi(string(d))
+		if err != nil {
+			log.Error().Err(err).Msg("LynnCheckOrder strconv err")
+			return false
+		}
+		lynnArr[i] = j
+	}
+	for i := len(lynnArr) - 2; i >= 0; i -= 2 {
+		n := lynnArr[i] * 2
 		if n >= 10 {
 			n -= 9
 		}
-		lynn[i] = n
+		lynnArr[i] = n
 	}
 	sum := 0
-	for i := 0; i < len(lynn); i++ {
-		sum += lynn[i]
+	for i := 0; i < len(lynnArr); i++ {
+		sum += lynnArr[i]
 	}
 	return sum%10 == 0
 }

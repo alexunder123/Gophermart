@@ -2,7 +2,6 @@ package router
 
 import (
 	"bytes"
-	"encoding/json"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -27,7 +26,7 @@ type username struct {
 
 func TestRouter(t *testing.T) {
 	logger.Newlogger()
-	log.Info().Msg("Start program")
+	log.Info().Msg("Start test")
 
 	os.Setenv("RUN_ADDRESS", "127.0.0.1:8080")
 	os.Setenv("DATABASE_URI", "postgres://postgres:1@localhost:5432/postgres?sslmode=disable")
@@ -52,17 +51,22 @@ func TestRouter(t *testing.T) {
 	ts.Listener.Close()
 	ts.Listener = l
 	ts.Start()
-
 	defer ts.Close()
-	newUser := username{Login: "abpopt889t", Password: "njrto0874NRIY"}
-	newUserBZ, err := json.Marshal(newUser)
-	if err != nil {
-		log.Fatal().Err(err).Msg("json.Marshal error")
-	}
-	userID := register(ts, t, newUserBZ)
-	log.Debug().Msgf("received userID: %s", userID)
+
+	// newUser := username{Login: "abpopt88t", Password: "njrto0874NRIY"}
+	// newUserBZ, err := json.Marshal(newUser)
+	// if err != nil {
+	// 	log.Fatal().Err(err).Msg("json.Marshal error")
+	// }
+	// userID := register(ts, t, newUserBZ)
+	// log.Debug().Msgf("received userID: %s", userID)
+
+	now := []byte(`12345678902`)
+	bool := hndlr.LynnCheckOrder(now)
+	log.Debug().Msgf("result: %t", bool)
+
 	accrual.Stop()
-	log.Info().Msg("Program finished")
+	log.Info().Msg("test finished")
 }
 
 func register(ts *httptest.Server, t *testing.T, newUser []byte) string {

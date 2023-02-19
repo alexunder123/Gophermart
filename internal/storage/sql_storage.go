@@ -31,17 +31,23 @@ func NewSQLStorager(cfg *config.Config) *SQLStorage {
 }
 
 func createDB(db *sql.DB) error {
-	_, err := db.Exec("CREATE TABLE IF NOT EXISTS gophermart_users(user_id text UNIQUE, login text UNIQUE, password text, balance integer DEFAULT 0, withdrawn integer DEFAULT 0);")
+
+	_, err := db.Exec("DROP TABLE IF EXISTS gophermart_orders;")
+	if err != nil {
+		log.Fatal().Err(err).Msg("CreateDB drop table error")
+	}
+
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS gophermart_users(user_id text UNIQUE, login text UNIQUE, password text, balance integer DEFAULT 0, withdrawn integer DEFAULT 0);")
 	if err != nil {
 		return err
 	}
 	log.Debug().Msg("storage gophermart_users init")
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS gophermart_orders(order_no text UNIQUE, user_id text, status text DEFAULT 'NEW', accrual integer DEFAULT 0, date timestamptz DEFAULT CURRENT_TIMESTAMP);")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS gophermart_orders(order_no text UNIQUE, user_id text, status text DEFAULT 'NEW', accrual integer DEFAULT 0, date text);")
 	if err != nil {
 		return err
 	}
 	log.Debug().Msg("storage gophermart_orders init")
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS gophermart_withdraws(order_no text UNIQUE, user_id text, sum integer, date timestamptz DEFAULT CURRENT_TIMESTAMP);")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS gophermart_withdraws(order_no text UNIQUE, user_id text, sum integer, date text);")
 	if err != nil {
 		return err
 	}
@@ -75,14 +81,10 @@ func (s *SQLStorage) AddNewUser(login, password, userID string) error {
 
 func (s *SQLStorage) LogInUser(login, password string) (string, error) {
 	var userID string
-	row := s.DB.QueryRow("SELECT user_id FROM gophermart_users WHERE login = $1 AND password = $2", login, password)
-	if errors.Is(row.Err(), sql.ErrNoRows) {
+	err := s.DB.QueryRow("SELECT user_id FROM gophermart_users WHERE login = $1 AND password = $2", login, password).Scan(&userID)
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrAuthError
 	}
-	if row.Err() != nil {
-		return "", row.Err()
-	}
-	err := row.Scan(&userID)
 	if err != nil {
 		return "", err
 	}
@@ -90,31 +92,29 @@ func (s *SQLStorage) LogInUser(login, password string) (string, error) {
 }
 
 func (s *SQLStorage) CheckUser(userID string) error {
-	row := s.DB.QueryRow("SELECT login FROM gophermart_users WHERE user_id = $1", userID)
-	if errors.Is(row.Err(), sql.ErrNoRows) {
+	var login string
+	err := s.DB.QueryRow("SELECT login FROM gophermart_users WHERE user_id = $1", userID).Scan(&login)
+	if errors.Is(err, sql.ErrNoRows) {
 		return ErrAuthError
 	}
-	if row.Err() != nil {
-		return row.Err()
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
-func (s *SQLStorage) AddNewOrder(userID, orders string) error {
+func (s *SQLStorage) AddNewOrder(userID, order string) error {
 	var currenUser string
-	row := s.DB.QueryRow("SELECT user_id FROM gophermart_users WHERE orders = $1", orders)
-	if !errors.Is(row.Err(), sql.ErrNoRows) {
-		err := row.Scan(&currenUser)
-		if err != nil {
-			return err
-		}
+	err := s.DB.QueryRow("SELECT user_id FROM gophermart_orders WHERE order_no = $1", order).Scan(&currenUser)
+	if !errors.Is(err, sql.ErrNoRows) {
+		log.Debug().Msg("AddNewOrder order_id is present in DB")
 		if userID == currenUser {
 			return ErrUploaded
 		}
 		return ErrAnotherUserUploaded
 	}
-
-	_, err := s.DB.Exec("INSERT INTO gophermart_orders(order_no, user_id) VALUES($1, $2)", orders, userID)
+	today := time.Now()
+	_, err = s.DB.Exec("INSERT INTO gophermart_orders(order_no, user_id, date) VALUES($1, $2, $3)", order, userID, today.Format(time.RFC3339))
 	if err != nil {
 		return err
 	}
@@ -126,16 +126,13 @@ func (s *SQLStorage) AddNewOrder(userID, orders string) error {
 	return nil
 }
 
-func (s *SQLStorage) UserWithdraw(userID, order string, sum float64) error {
-	var balance int
-	row := s.DB.QueryRow("SELECT balance FROM gophermart_users WHERE user_id = $1", userID)
-	if row.Err() != nil {
-		return row.Err()
-	}
-	err := row.Scan(&balance)
+func (s *SQLStorage) UserWithdraw(userID, order string, sum float32) error {
+	var balance, withdrawn int
+	err := s.DB.QueryRow("SELECT balance, withdrawn FROM gophermart_users WHERE user_id = $1", userID).Scan(&balance, &withdrawn)
 	if err != nil {
 		return err
 	}
+	log.Debug().Msgf("UserBalance: %d, %d, want to witdraw: %f", balance, withdrawn, sum)
 	if balance < int(sum*100) {
 		return ErrNotEnouthBalance
 	}
@@ -144,23 +141,25 @@ func (s *SQLStorage) UserWithdraw(userID, order string, sum float64) error {
 	if err != nil {
 		return err
 	}
-	stmtUser, err := tx.Prepare("UPDATE gophermart_users SET balance=$1 WHERE user_id = $2")
+	stmtUser, err := tx.Prepare("UPDATE gophermart_users SET balance=$1, withdrawn=$2 WHERE user_id = $3")
 	if err != nil {
 		return err
 	}
 	defer stmtUser.Close()
-	stmtWdraw, err := tx.Prepare("INSERT INTO gophermart_withdraws(order_no, user_id, sum) VALUES($1, $2, $3)")
+	stmtWdraw, err := tx.Prepare("INSERT INTO gophermart_withdraws(order_no, user_id, sum, date) VALUES($1, $2, $3, $4)")
 	if err != nil {
 		return err
 	}
 	defer stmtWdraw.Close()
-	if _, err = stmtUser.Exec(balance-int(sum*100), userID); err != nil {
+	today := time.Now()
+	log.Debug().Msgf("newUserBalance: %d", balance-int(sum*100))
+	if _, err = stmtUser.Exec(balance-int(sum*100), withdrawn+int(sum*100), userID); err != nil {
 		if err = tx.Rollback(); err != nil {
 			log.Fatal().Msgf("update drivers: unable to rollback: %v", err)
 		}
 		return err
 	}
-	if _, err = stmtWdraw.Exec(order, userID, sum*100); err != nil {
+	if _, err = stmtWdraw.Exec(order, userID, int(sum*100), today.Format(time.RFC3339)); err != nil {
 		if err = tx.Rollback(); err != nil {
 			log.Fatal().Msgf("update drivers: unable to rollback: %v", err)
 		}
@@ -176,15 +175,12 @@ func (s *SQLStorage) UserWithdraw(userID, order string, sum float64) error {
 
 func (s *SQLStorage) UserBalance(userID string) ([]byte, error) {
 	var balance, withdrawn int
-	row := s.DB.QueryRow("SELECT balance, withdrawn FROM gophermart_users WHERE user_id = $1", userID)
-	if row.Err() != nil {
-		return nil, row.Err()
-	}
-	err := row.Scan(&balance, &withdrawn)
+	err := s.DB.QueryRow("SELECT balance, withdrawn FROM gophermart_users WHERE user_id = $1", userID).Scan(&balance, &withdrawn)
 	if err != nil {
 		return nil, err
 	}
-	currentUserBalance := currentBalance{Current: float64(balance) / 100, Withdrawn: float64(withdrawn) / 100}
+	currentUserBalance := currentBalance{Current: float32(balance) / 100, Withdrawn: float32(withdrawn) / 100}
+	log.Debug().Msgf("currentUserBalance: %f", currentUserBalance)
 	currentUserBalanceBZ, err := json.Marshal(currentUserBalance)
 	if err != nil {
 		return nil, err
@@ -193,9 +189,8 @@ func (s *SQLStorage) UserBalance(userID string) ([]byte, error) {
 }
 
 func (s *SQLStorage) UserOrders(userID string) ([]byte, error) {
-	var orderNo, status string
+	var orderNo, status, date string
 	var accrual int
-	var date time.Time
 	currentUserOrders := make([]orders, 0)
 	rows, err := s.DB.Query("SELECT order_no, status, accrual, date FROM gophermart_orders WHERE user_id = $1", userID)
 	if err != nil {
@@ -211,9 +206,9 @@ func (s *SQLStorage) UserOrders(userID string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		currentUserOrders = append(currentUserOrders, orders{Number: orderNo, Status: status, UploadedAt: date.Format(time.RFC3339)})
+		currentUserOrders = append(currentUserOrders, orders{Number: orderNo, Status: status, UploadedAt: date})
 		if status == "PROCESSED" {
-			currentUserOrders[i].Accrual = float64(accrual) / 100
+			currentUserOrders[i].Accrual = float32(accrual) / 100
 		}
 		i++
 	}
@@ -242,7 +237,7 @@ func (s *SQLStorage) UserWithdrawals(userID string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		currentUserWithdraws = append(currentUserWithdraws, withdraws{Order: orderNo, Sum: float64(sum) / 100, ProcessedAt: date.Format(time.RFC3339)})
+		currentUserWithdraws = append(currentUserWithdraws, withdraws{Order: orderNo, Sum: float32(sum) / 100, ProcessedAt: date.Format(time.RFC3339)})
 	}
 	currentUserWithdrawsBZ, err := json.Marshal(currentUserWithdraws)
 	if err != nil {
@@ -252,10 +247,9 @@ func (s *SQLStorage) UserWithdrawals(userID string) ([]byte, error) {
 }
 
 func (s *SQLStorage) GetProcessedOrders() ([]ProcessedOrders, error) {
-	var orderNo string
-	var status string
+	var userID, orderNo, status string
 	orders := make([]ProcessedOrders, 0)
-	rows, err := s.DB.Query("SELECT order_no, status FROM gophermart_orders WHERE status='NEW' OR status='REGISTERED' OR status='PROCESSING' ORDER BY date")
+	rows, err := s.DB.Query("SELECT user_id, order_no, status FROM gophermart_orders WHERE status='NEW' OR status='REGISTERED' OR status='PROCESSING' ORDER BY date")
 	if err != nil {
 		return nil, err
 	}
@@ -264,27 +258,63 @@ func (s *SQLStorage) GetProcessedOrders() ([]ProcessedOrders, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&orderNo, &status)
+		err = rows.Scan(&userID, &orderNo, &status)
 		if err != nil {
 			return nil, err
 		}
-		orders = append(orders, ProcessedOrders{Order: orderNo, Status: status})
+		orders = append(orders, ProcessedOrders{UserID: userID, Order: orderNo, Status: status})
 	}
 	return orders, nil
 }
 
 func (s *SQLStorage) UpdateOrderStatus(accResult AccuralResult) error {
-	if accResult.Status == "PROCESSED"{
-		_, err := s.DB.Exec("INSERT INTO gophermart_orders(status, accrual) VALUES(PROCESSED, $1) WHERE order_no=$2", int(accResult.Accrual*100), accResult.Order)
+	if accResult.Status == "PROCESSED" {
+		var balance int
+		err := s.DB.QueryRow("SELECT balance FROM gophermart_users WHERE user_id = $1", accResult.UserID).Scan(&balance)
 		if err != nil {
 			return err
 		}
+
+		tx, err := s.DB.Begin()
+		if err != nil {
+			return err
+		}
+		stmtUser, err := tx.Prepare("UPDATE gophermart_users SET balance=$1 WHERE user_id = $2")
+		if err != nil {
+			return err
+		}
+		defer stmtUser.Close()
+		stmtOrder, err := tx.Prepare("UPDATE gophermart_orders SET status='PROCESSED', accrual=$1 WHERE order_no=$2")
+		if err != nil {
+			return err
+		}
+		defer stmtOrder.Close()
+
+		if _, err = stmtUser.Exec(balance+int(accResult.Accrual*100), accResult.UserID); err != nil {
+			if err = tx.Rollback(); err != nil {
+				log.Fatal().Msgf("update drivers: unable to rollback: %v", err)
+			}
+			return err
+		}
+		if _, err = stmtOrder.Exec(int(accResult.Accrual*100), accResult.Order); err != nil {
+			if err = tx.Rollback(); err != nil {
+				log.Fatal().Msgf("update drivers: unable to rollback: %v", err)
+			}
+			return err
+		}
+
+		if err = tx.Commit(); err != nil {
+			log.Fatal().Msgf("update drivers: unable to commit: %v", err)
+			return err
+		}
+
 		return nil
 	}
-	_, err := s.DB.Exec("INSERT INTO gophermart_orders(status) VALUES($1) WHERE order_no=$2", accResult.Status, accResult.Order)
-		if err != nil {
-			return err
-		}
-		return nil
-	
+
+	_, err := s.DB.Exec("UPDATE gophermart_orders SET status=$1 WHERE order_no=$2", accResult.Status, accResult.Order)
+	if err != nil {
+		return err
+	}
+	return nil
+
 }
