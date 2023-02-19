@@ -31,13 +31,7 @@ func NewSQLStorager(cfg *config.Config) *SQLStorage {
 }
 
 func createDB(db *sql.DB) error {
-
-	_, err := db.Exec("DROP TABLE IF EXISTS gophermart_orders;")
-	if err != nil {
-		log.Fatal().Err(err).Msg("CreateDB drop table error")
-	}
-
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS gophermart_users(user_id text UNIQUE, login text UNIQUE, password text, balance integer DEFAULT 0, withdrawn integer DEFAULT 0);")
+	_, err := db.Exec("CREATE TABLE IF NOT EXISTS gophermart_users(user_id text UNIQUE, login text UNIQUE, password text, balance integer DEFAULT 0, withdrawn integer DEFAULT 0);")
 	if err != nil {
 		return err
 	}
@@ -52,10 +46,6 @@ func createDB(db *sql.DB) error {
 		return err
 	}
 	log.Debug().Msg("storage gophermart_withdraws init")
-	// _, err = db.Exec("CREATE TABLE IF NOT EXISTS gophermart_temp(order_no text UNIQUE, status text DEFAULT new, date timestamptz DEFAULT current_timestamp;")
-	// if err != nil {
-	// 	return err
-	// }
 	return nil
 }
 
@@ -118,11 +108,6 @@ func (s *SQLStorage) AddNewOrder(userID, order string) error {
 	if err != nil {
 		return err
 	}
-	// _, err = s.DB.Exec("INSERT INTO gophermart_temp(order_no) VALUES($1)", orders)
-	// if err != nil {
-	// 	return err
-	// }
-
 	return nil
 }
 
