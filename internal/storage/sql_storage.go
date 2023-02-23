@@ -233,7 +233,7 @@ func (s *SQLStorage) UserWithdrawals(userID string) ([]byte, error) {
 func (s *SQLStorage) GetProcessedOrders() ([]ProcessedOrders, error) {
 	var userID, orderNo, status string
 	orders := make([]ProcessedOrders, 0)
-	rows, err := s.DB.Query("SELECT user_id, order_no, status FROM gophermart_orders WHERE status='NEW' OR status='REGISTERED' OR status='PROCESSING' ORDER BY date")
+	rows, err := s.DB.Query("SELECT user_id, order_no, status FROM gophermart_orders WHERE status='NEW' OR status='REGISTERED' OR status='PROCESSING' ORDER BY date LIMIT 20")
 	if err != nil {
 		return nil, err
 	}
